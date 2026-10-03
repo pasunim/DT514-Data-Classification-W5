@@ -2,7 +2,8 @@
 
 รวม Notebook, Dataset และ Model สำหรับการเรียนเรื่อง **Classification** ในรายวิชา DT514
 เนื้อหาครอบคลุมตั้งแต่การเตรียมข้อมูล การแบ่ง Train/Test, การหา Hyper-parameter ด้วย Cross Validation,
-การสร้างและเปรียบเทียบ Model หลายแบบด้วย Scikit-learn, การประเมินผลด้วย Metrics ต่าง ๆ
+การสร้างและเปรียบเทียบ Model หลายแบบด้วย Scikit-learn, การประเมินผลด้วย Metrics ต่าง ๆ,
+การคัดเลือก Features ด้วย RFE/RFECV
 ไปจนถึงการบันทึก Model และเขียน Module สำหรับนำไปใช้พยากรณ์จริง
 
 ---
@@ -29,7 +30,7 @@
 
 ```
 W5/
-├── W5_classification.ipynb   # งานหลัก: เปรียบเทียบ 5 Models บน WDBC + Decision Tree เชิงลึก
+├── W5_classification.ipynb   # งานหลัก: เปรียบเทียบ 5 Models บน WDBC + Decision Tree เชิงลึก + RFE
 ├── notebook_01.ipynb         # ตัวอย่างที่ 1: Decision Tree บน Iris Dataset
 ├── notebook_02.ipynb         # ตัวอย่างที่ 2: Decision Tree บน Titanic Dataset (ต้นฉบับ)
 ├── notebook_titanic.ipynb    # Titanic ฉบับปรับปรุง: มี EDA, เทียบ Gini/Entropy, Prediction Module ครบ
@@ -85,7 +86,7 @@ jupyter notebook                      # หรือเปิดไฟล์ .ip
 
 1. `notebook_01.ipynb` — เริ่มจากตัวอย่างง่ายที่สุด (Iris, 4 features)
 2. `notebook_02.ipynb` / `notebook_titanic.ipynb` — เรียนรู้ Preprocessing, Cross Validation, การบันทึกและใช้งาน Model
-3. `W5_classification.ipynb` — งานหลัก เปรียบเทียบหลาย Algorithm และวิเคราะห์ผลเชิงลึก
+3. `W5_classification.ipynb` — งานหลัก เปรียบเทียบหลาย Algorithm วิเคราะห์ผลเชิงลึก และคัดเลือก Features
 
 ---
 
@@ -155,6 +156,7 @@ Features 30 ค่ามาจากลักษณะของนิวเค�
 | **4. Train Multiple Models** | Decision Tree (`max_depth=10`), KNN (`k=5`), Logistic Regression (`max_iter=1000`), Random Forest (`n_estimators=100`), SVM (RBF kernel) |
 | **5. Evaluate Models** | คำนวณ Accuracy / Precision / Recall / F1 ของทุก Model · Bar Chart เปรียบเทียบ · Confusion Matrix ของ Model ที่ดีที่สุด, Decision Tree และ KNN · Classification Report · Feature Importance จาก Random Forest (Top 15) |
 | **6. Decision Tree แบบละเอียด** | ใช้ข้อมูลดิบ (ไม่ Scale) เพื่อให้อ่าน threshold เป็นหน่วยจริง · หา `max_depth` ที่ดีที่สุด (1–15) จากกราฟ Train vs Test Accuracy · Train ใหม่ด้วย depth ที่ดีที่สุด · `plot_tree` (แสดง 3 ชั้นแรก) · `export_text` แสดงกฎการตัดสินใจ · Feature Importance ของ Decision Tree |
+| **7. Feature Selection ด้วย RFE** | `RFECV` (estimator = Logistic Regression, 5-Fold `StratifiedKFold`, scoring = accuracy) หาจำนวน Features ที่เหมาะสมจาก **Training set เท่านั้น** · กราฟ CV Accuracy vs จำนวน Features (พร้อมช่วง ±std) · ตาราง Ranking ของทุก Feature · `RFE` แบบกำหนด Top 10 แล้วเทียบกับ Top 10 ของ Random Forest · Train 5 Models ใหม่ด้วย Features ที่เลือก แล้วเทียบ Accuracy/Recall ก่อน-หลัง RFE |
 | **สรุปผล** | ตอบ 5 คำถามหลักพร้อมตัวเลขจากการทดลอง |
 
 ### 2. `notebook_01.ipynb` — Iris
@@ -218,6 +220,29 @@ Features 30 ค่ามาจากลักษณะของนิวเค�
 - `max_depth` ที่ดีที่สุด = **7** (Test Accuracy 0.9386) — ต้นไม้มี 22 Leaf
 - เมื่อ depth เพิ่มขึ้น Train Accuracy เข้าใกล้ 1.0 แต่ Test Accuracy ไม่เพิ่มตาม → เกิด **Overfitting**
 - Decision Tree ใช้เพียง **14 จาก 30 Features** โดย `Worst Perimeter` มีความสำคัญสูงถึง 0.737 และเป็นเงื่อนไขแรกที่ราก (`Worst Perimeter <= 112.80`)
+
+### WDBC — Feature Selection ด้วย RFE (Section 7)
+
+- RFECV เลือก **18 จาก 30 Features** (ลดลง 40%) — CV Accuracy สูงสุด **0.9802**
+- Features ที่ถูกเลือก (Ranking = 1):
+  - **Mean:** Radius, Texture, Area, Compactness, Concavity, Concave Points
+  - **Error:** Radius, Perimeter, Area, Compactness
+  - **Worst:** Radius, Texture, Perimeter, Area, Smoothness, Concavity, Concave Points, Symmetry
+- Features ที่ถูกตัดทิ้งก่อนสุด: Worst Fractal Dimension (13), Mean Fractal Dimension (12), Concavity Error (11)
+- RFE Top 10 ตรงกับ Top 10 ของ Random Forest **6 ตัว**: Mean Concave Points, Worst Area, Worst Concave Points, Worst Concavity, Worst Perimeter, Worst Radius
+
+**เปรียบเทียบก่อน/หลัง RFE (Test set)**
+
+| Model | Accuracy (30) | Accuracy (RFE 18) | Recall (30) | Recall (RFE 18) |
+|---|---|---|---|---|
+| Decision Tree | 0.9298 | 0.9211 ↓ | 0.9048 | 0.8810 ↓ |
+| KNN (`k=5`) | 0.9561 | 0.9561 | 0.9048 | 0.9048 |
+| **Logistic Regression** | 0.9649 | **0.9825 ↑** | 0.9286 | **0.9762 ↑** |
+| Random Forest | 0.9737 | 0.9737 | 0.9286 | 0.9286 |
+| SVM (RBF) | 0.9737 | 0.9737 | 0.9286 | 0.9524 ↑ |
+
+- **Logistic Regression + RFE** ได้ผลดีที่สุดในทั้งโน้ตบุ๊ก (Accuracy 98.25%, Recall 97.62% — พลาด Malignant เพียง 1 จาก 42 ราย) ซึ่งสมเหตุสมผลเพราะ RFE ใช้ Logistic Regression เป็น estimator ในการคัดเลือก
+- Model ส่วนใหญ่รักษาหรือเพิ่มประสิทธิภาพได้แม้ใช้ Features น้อยลง มีเพียง Decision Tree ที่ลดลงเล็กน้อย
 
 ### Iris — Decision Tree (`max_depth=3`)
 
@@ -316,6 +341,14 @@ print(model.predict(x))        # 0 = Died, 1 = Survived
 
 - **`criterion`** — `gini` (Gini Impurity) หรือ `entropy` (Information Gain) ใช้วัดความ "ไม่บริสุทธิ์" ของโหนด (0 = มีคลาสเดียว)
 - **`max_depth`** — ความลึกสูงสุดของต้นไม้ ลึกเกินไป → Overfitting, ตื้นเกินไป → Underfitting
+
+### Feature Selection: RFE / RFECV
+
+- **RFE (Recursive Feature Elimination)** — Train Model ด้วย Features ทั้งหมด → ดูความสำคัญ (`coef_` หรือ `feature_importances_`) → ตัด Feature ที่สำคัญน้อยที่สุดออก → ทำซ้ำจนเหลือตามจำนวนที่กำหนด (`n_features_to_select`)
+- **RFECV** — RFE + Cross Validation เลือกจำนวน Features ที่ให้คะแนน CV สูงสุดให้อัตโนมัติ
+- ผลลัพธ์ที่ใช้บ่อย: `n_features_` (จำนวนที่เลือก), `support_` (mask ของ Features ที่เลือก), `ranking_` (1 = ถูกเลือก, ยิ่งมากยิ่งถูกตัดเร็ว), `cv_results_` (คะแนนแต่ละจำนวน Features)
+- ถ้าใช้ estimator แบบ Linear (เช่น Logistic Regression) ต้องใช้ข้อมูลที่ Scale แล้ว เพราะ `coef_` ขึ้นกับสเกลของ Feature
+- ข้อดี: Model เล็กลง เร็วขึ้น ตีความง่ายขึ้น และลดความเสี่ยง Overfitting
 
 ---
 
